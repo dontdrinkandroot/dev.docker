@@ -1,0 +1,75 @@
+name: Build Docker image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    # Weekly, Monday 04:07 UTC: rebuilds :latest so apt security patches and the
+    # rolling toolchain installs (Node LTS, Go, uv, pnpm) stay current. Downstream
+    # images only pick it up when their own builds rerun.
+    - cron: '7 4 * * 1'
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/dontdrinkandroot/dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:latest
+          # GHA cache restores the last build's layers (mode=max so the apt and
+          # toolchain layers survive), so weekly rebuilds only refresh what
+          # changed. The workflow is serialized via concurrency, so the default
+          # per-ref cache scope cannot collide with concurrent pushes.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            DEV_UID=1000
+            DEV_GID=1000
+
+      - name: Prune old image versions (keep last 5)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          versions="$(gh api "users/${{ github.repository_owner }}/packages/container/dev/versions" \
+            --paginate \
+            -q '.[] | select(.metadata.container.tags | index("latest") | not) | select(.created_at) | [.id, .created_at] | @tsv' \
+            2>/dev/null || true)"
+          if [ -z "$versions" ]; then
+            echo "No old image versions to prune."
+            exit 0
+          fi
+          echo "$versions" | sort -k2 -r | tail -n +6 | while IFS=$'\t' read -r id _; do
+            echo "Deleting package version $id"
+            gh api -X DELETE "users/${{ github.repository_owner }}/packages/container/dev/versions/$id" >/dev/null || true
+          done
