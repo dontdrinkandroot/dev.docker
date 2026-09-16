@@ -53,6 +53,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         php8.5-pgsql \
         php8.5-bcmath \
         php8.5-gd \
+        php8.5-ldap \
         composer \
     && if [ ! -e /usr/bin/php ]; then ln -s php8.5 /usr/bin/php; fi \
     && printf '%s\n' 'zend_extension=xdebug.so' 'xdebug.mode=off' > /etc/php/8.5/mods-available/xdebug.ini
