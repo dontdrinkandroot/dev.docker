@@ -3,8 +3,8 @@
 Generic development base image (`ghcr.io/dontdrinkandroot/dev:latest`, Ubuntu
 26.04 LTS): apt toolchain (build-essential, git, ripgrep, shellcheck, jq, ...),
 Node.js LTS, Go (latest stable), Python 3 + uv, PHP 8.5 + composer, OpenJDK 25,
-pnpm. Built for standalone interactive use *and* as the base for project images
-such as `ghcr.io/dontdrinkandroot/acp-agent`.
+Kotlin (kotlinc, latest stable), pnpm. Built for standalone interactive use
+*and* as the base for project images such as `ghcr.io/dontdrinkandroot/acp-agent`.
 
 ## Image
 

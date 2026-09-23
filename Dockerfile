@@ -104,6 +104,19 @@ RUN set -eu; \
     && ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt \
     && rm -f /tmp/go.tar.gz
 
+RUN set -eu; \
+    kotlin_version=$(curl -fsSL https://api.github.com/repos/JetBrains/kotlin/releases/latest \
+        | jq -r '.tag_name | sub("^v";"")'); \
+    curl -fsSL "https://github.com/JetBrains/kotlin/releases/download/v${kotlin_version}/kotlin-compiler-${kotlin_version}.zip" -o /tmp/kotlinc.zip \
+    && curl -fsSL "https://github.com/JetBrains/kotlin/releases/download/v${kotlin_version}/kotlin-compiler-${kotlin_version}.zip.sha256" -o /tmp/kotlinc.zip.sha256 \
+    && printf '%s  /tmp/kotlinc.zip\n' "$(cut -c1-64 /tmp/kotlinc.zip.sha256)" | sha256sum -c - \
+    && unzip -q /tmp/kotlinc.zip -d /usr/local \
+    && test -x /usr/local/kotlinc/bin/kotlinc \
+    && ln -s /usr/local/kotlinc/bin/kotlinc /usr/local/bin/kotlinc \
+    && ln -s /usr/local/kotlinc/bin/kotlin /usr/local/bin/kotlin \
+    && rm -f /tmp/kotlinc.zip /tmp/kotlinc.zip.sha256 \
+    && kotlinc -version
+
 RUN groupadd -o --gid "${DEV_GID}" dev \
     && useradd -o \
         --uid "${DEV_UID}" \
